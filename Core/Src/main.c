@@ -63,45 +63,67 @@ static void MX_USART2_UART_Init(void);
   * @brief  The application entry point.
   * @retval int
   */
-int main(void)
-{
-  /* USER CODE BEGIN 1 */
+// runs the power on self-test. Returns true if the test passes, false otherwise
+_bool power_on_self_test( void );
 
-  /* USER CODE END 1 */
+// ask user for expected period, sets timer clock accordingly. Return period or 0 if invalid
+int set_timer_base( void );
 
-  /* MCU Configuration--------------------------------------------------------*/
+// Captures 1 line of text from console. Returns nul terminated string when \n is entered
+void get_line ( void *buffer, int max_length );
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+//////////////////////////////////////////////////////////////
+// Embedded code usually consists of 2 components
+//  - The init section is run once at startup and initializes all low level drivers and modules
+//  - A main loop that runs forever that calls the application tasks repeatedly.
+////////////////
+int main(void) {
 
-  /* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+	HAL_Init();
 
-  /* Configure the system clock */
-  SystemClock_Config();
+	/* USER CODE BEGIN Init */
 
-  /* USER CODE BEGIN SysInit */
+	/* USER CODE END Init */
 
-  /* USER CODE END SysInit */
+	/* Configure the system clock */
+	SystemClock_Config();
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_USART2_UART_Init();
-  /* USER CODE BEGIN 2 */
+	/* USER CODE BEGIN SysInit */
 
-  /* USER CODE END 2 */
+	/* USER CODE END SysInit */
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	MX_USART2_UART_Init();
 
-    /* USER CODE BEGIN 3 */
-  }
-  /* USER CODE END 3 */
+	/**
+	  * @brief USART2 Initialization Function
+	  * @param None
+	  * @retval None
+	  */
+
+    while( power_on_self_test() == false)
+        ;
+
+    // Main loop runs forever
+    while(1)
+    {
+    	// 1. Print “Enter expected period or <CR> if no change”. Wait for user response
+    	print(message);
+    	get_line(buffer, sizeof(buffer));
+
+    	// 2. if yes, read new period then set up timer clock
+        while( set_timer_base() == 0 )
+            ;
+
+        // 3. read 100 pulses
+
+        // 4. print out results
+
+    }
 }
+
 
 /**
   * @brief System Clock Configuration
@@ -152,11 +174,6 @@ void SystemClock_Config(void)
   }
 }
 
-/**
-  * @brief USART2 Initialization Function
-  * @param None
-  * @retval None
-  */
 static void MX_USART2_UART_Init(void)
 {
 
