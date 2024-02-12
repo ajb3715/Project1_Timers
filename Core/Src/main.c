@@ -7,38 +7,50 @@
 #include <ctype.h>
 #include <uart.h>
 
+// Write the following three methods…and invoke in main() as below…
+// Add more methods to be called from the main loop as needed
+////////////////
 
-uint8_t buffer[100];
-int main(void){
-	int		some_int;
-	float 	some_float = 1.0;
-	int		n ;
+// runs the power on self-test. Returns true if the test passes, false otherwise
+_bool power_on_self_test( void );
 
-	clock_init(); // Switch System Clock = 80 MHz
-	led_init();
-	USART2_Init(9600);	// initialize USART2
+// ask user for expected period, sets timer clock accordingly. Return period or 0 if invalid
+int set_timer_base( void );
 
-	while (1){
-		// create some values to print
-		some_float *= -1.618;
-		some_int = some_float;
-		char *msg = "";
+// Captures 1 line of text from console. Returns nul terminated string when \n is entered
+void get_line ( void *buffer, int max_length );
 
-		// toggle User LED based on user input
-		char rxByte = USART_Read(USART2);
-		// 'L' turns LED on
-		if (rxByte == 'L') {
-			led_set(1);
-			msg = "ON";
-		}
-		// 'l' turns it off
-		else if(rxByte == 'l') {
-			led_set(0);
-			msg = "off";
-		}
 
-		// print out some values
-		n = sprintf((char *)buffer, "some_int=%d\t some_float=%5.3f \t%s\r\n", some_int, some_float, msg);
-		USART_Write(USART2, buffer, n);
-	}
+
+//////////////////////////////////////////////////////////////
+// Embedded code usually consists of 2 components
+//  - The init section is run once at startup and initializes all low level drivers and modules
+//  - A main loop that runs forever that calls the application tasks repeatedly.
+////////////////
+int main(void) {
+
+    // Initialization executed once at startup
+    UART_Init();
+    TIM_Init();
+
+    while( power_on_self_test() == false)
+        ;
+
+    // Main loop runs forever
+    while(1)
+    {
+    	// 1. Print “Enter expected period or <CR> if no change”. Wait for user response
+    	print(message);
+    	get_line(buffer, sizeof(buffer));
+
+    	// 2. if yes, read new period then set up timer clock
+        while( set_timer_base() == 0 )
+            ;
+
+        // 3. read 100 pulses
+
+        // 4. print out results
+
+    }
 }
+
