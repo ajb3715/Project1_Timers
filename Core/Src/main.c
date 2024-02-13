@@ -62,6 +62,7 @@ int main(void) {
 
 _Bool power_on_self_test(void){
 	// Initialize GPIO pin for pulse input
+	//likely move this to a different function
 	    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;   // Enable GPIOA clock
 	    GPIOA->MODER &= ~GPIO_MODER_MODER0;    // Clear mode bits for pin 0
 	    GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR0;    // Clear pull-up/pull-down bits for pin 0
