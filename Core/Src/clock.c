@@ -44,19 +44,19 @@ void TIM_Init(void){
 		/* Set the TIM3 timer channel 1 as input */
 		/* CC1S bits are writable only when the channel1 is off */
 		/* After reset, all the timer channels are turned off */
-		TIM3->CCMR1 |= TIM_CCMR1_CC1S_0;
+		TIM2->CCMR1 |= TIM_CCMR1_CC1S_0;
 		/* Enable the TIM3 channel1 and keep the default configuration (state after
 		reset) for channel polarity */
-		TIM3->CCER |= TIM_CCER_CC1E;
+		TIM2->CCER |= TIM_CCER_CC1E;
 		/* Start the timer counter */
-		TIM3->CR1 |= TIM_CR1_CEN;
+		TIM2->CR1 |= TIM_CR1_CEN;
 		/* Clear the Capture event flag for channel 1 */
-		TIM3->SR = ~TIM_SR_CC1IF;
+		TIM2->SR = ~TIM_SR_CC1IF;
 }
 
 void TIM_Period(void){
 	/* Loop until the capture event flag is set */
-	while (!(TIM3->SR & TIM_SR_CC1IF));
+	while (!(TIM2->SR & TIM_SR_CC1IF));
 	/* An active edge was detected, so store the timestamp */
-	TimeStamp = TIM3->CCR1;
+	TimeStamp = TIM2->CCR1;
 }

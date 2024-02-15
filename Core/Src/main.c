@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <uart.h>
+#include <stdbool.h>
 
 // Write the following three methods…and invoke in main() as below…
 // Add more methods to be called from the main loop as needed
@@ -61,24 +62,22 @@ int main(void) {
 }
 
 _Bool power_on_self_test(void){
-	// Initialize GPIO pin for pulse input
-	//likely move this to a different function
-	    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;   // Enable GPIOA clock
-	    GPIOA->MODER &= ~GPIO_MODER_MODER0;    // Clear mode bits for pin 0
-	    GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR0;    // Clear pull-up/pull-down bits for pin 0
+	    //POST Pass if it saw a signal
+	  while((TIM2->SR & 0x02)){
+		  pulseDetected = true;
+		  break;
+	  }
+	  	//possibly change for variable clock tbd
+		volatile int MS = (int)((TIM2->CNT / 80000000.0) * 1000000.0);
+		//Checks if it has been 100 ms
+		 while(MS < 1000.0){
+			  if((TIM2->SR & 0x02)){
+				  pulseDetected = true;
+				  break;
+			  }
+			  MS = (int)((TIM2->CNT / 80000000.0) * 1000000.0);
+		  }
+		 return pulseDetected;
 
-	    pulseDetected = false;
-	    startTick = currentTick;
-
-	        // Wait for pulses within 100 milliseconds
-	        while ((currentTick - startTick) < 100) {
-	            // Check if pulses are detected on any pin of GPIOA
-	                if ((GPIOA->IDR & GPIO_IDR_IDR_0) != 0) {
-	                    // Pulse detected on at least one pin
-	                    pulseDetected = true;
-	                    return pulseDetected;
-	            }
-	        }
-	        return pulseDetected;
 }
 
