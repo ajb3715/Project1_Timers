@@ -60,8 +60,8 @@ all: main-build
 main-build: Project1_Timers.elf secondary-outputs
 
 # Tool invocations
-Project1_Timers.elf Project1_Timers.map: $(OBJS) $(USER_OBJS) C:\Users\alexb\STM32CubeIDE\workspace_1.14.1\Project1_Timers\STM32L476RGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Project1_Timers.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\alexb\STM32CubeIDE\workspace_1.14.1\Project1_Timers\STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Project1_Timers.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Project1_Timers.elf Project1_Timers.map: $(OBJS) $(USER_OBJS) /Users/amurph3/Desktop/Coding\ Stuff/Classwork/SWEN-563/Project1_Timers/STM32L476RGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Project1_Timers.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/amurph3/Desktop/Coding Stuff/Classwork/SWEN-563/Project1_Timers/STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Project1_Timers.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
