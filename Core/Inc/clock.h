@@ -14,6 +14,6 @@ void clock_init(void);
 
 void TIM_Init(void);
 
-void TIM_Period(void);
+
 
 #endif /* INC_CLOCK_H_ */

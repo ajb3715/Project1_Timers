@@ -8,7 +8,7 @@
 
 #include "stm32l476xx.h"
 
-uint32_t TimeStamp;
+
 
 void clock_init(void) {
     RCC->CR |= ((uint32_t)RCC_CR_HSION);
@@ -54,9 +54,6 @@ void TIM_Init(void){
 		TIM2->SR = ~TIM_SR_CC1IF;
 }
 
-void TIM_Period(void){
-	/* Loop until the capture event flag is set */
-	while (!(TIM2->SR & TIM_SR_CC1IF));
-	/* An active edge was detected, so store the timestamp */
-	TimeStamp = TIM2->CCR1;
-}
+
+
+
