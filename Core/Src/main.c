@@ -30,6 +30,7 @@ uint32_t buckets[101];
 int n;
 int meas[1001];
 int dutys[1001];
+int check;
 
 // runs the power on self-test. Returns true if the test passes, false otherwise
 //confirm that the GPIO port is seeing pulses at least once in 100 milliseconds
@@ -207,7 +208,14 @@ _Bool power_on_self_test(void){
 	    //POST Pass if it saw a signal
 	  while((TIM2->SR & (TIM_SR_CC1IF|| TIM_SR_CC2IF))){
 		  pulseDetected = true;
+		  sprintf(lineBuffer, "Post Passed!\r\n");
+		  printFunct(lineBuffer);
 		  break;
+	  }
+	  if(check == 0){
+		  sprintf(lineBuffer, "Post Failed, restart board or wait for post to pass\r\n");
+		  printFunct(lineBuffer);
+		  check = 1;
 	  }
 	  return pulseDetected;
 
