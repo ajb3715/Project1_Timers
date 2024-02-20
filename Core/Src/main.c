@@ -13,15 +13,22 @@
 // Write the following three methods…and invoke in main() as below…
 // Add more methods to be called from the main loop as needed
 ////////////////
-
+struct KeyValue {
+    int key;
+    int value;
+};
+char messageString[150];
+char lineBuffer[150];
 volatile uint32_t currentTick = 0;
 volatile uint32_t startTick = 0;
 volatile bool pulseDetected = false;
 volatile uint32_t lowerLimit = 450;
 volatile uint32_t upperLimit = 550;
+uint32_t lastCapture = 0;
 uint8_t buffer[100];
+uint32_t buckets[101];
 int n;
-int meas[1000];
+int meas[1001];
 int dutys[1001];
 
 // runs the power on self-test. Returns true if the test passes, false otherwise
@@ -41,6 +48,68 @@ void printString(char* string){
 	USART_Write(USART2, buffer, n);
 }
 
+struct KeyValue* initialize_map(int size) {
+    struct KeyValue* map = (struct KeyValue*)calloc(size * sizeof(struct KeyValue), 0);
+    if(map == NULL){
+    	fprintf(stderr, "Error allocating for map");
+    	exit(99);
+    }
+    for (int i = 0; i < size; i++) {
+        map[i].key = 0;
+        map[i].value = 0;
+    }
+    return map;
+}
+
+/*Loads in all data into the map and counts each occurrence of data in the value of each key.
+ *
+ * @KeyValue *map: The Dictionary or in this case an array of KeyValues
+ *
+ * @int *numbers: The pointer to the array of measurements
+ *
+ * @int size: The amount of entries to be entered into the dictionary
+ *
+ */
+void update_map(struct KeyValue* map, int* numbers, int size) {
+    for (int i = 0; i < size; i++) {
+    	// Grab a data entry
+        int number = numbers[i];
+        for (int j = 0; j < size; j++) {
+        	//If it is already in the map, increment the count
+            if (map[j].key == number) {
+                map[j].value++;
+                break;
+            }
+            //Otherwise add it to the map
+            if (map[j].key == 0) {
+                map[j].key = number;
+                map[j].value = 1;
+                break;
+            }
+        }
+    }
+}
+/*A helper function that swaps to entries in a dictionary
+ *
+ */
+void swap(struct KeyValue* a, struct KeyValue* b) {
+    struct KeyValue temp = *a;
+    *a = *b;
+    *b = temp;
+}
+/*Sorts the dictionary in ascending order
+ *
+ */
+void sort_dictionary(struct KeyValue* arr, size_t arrSize) {
+    for (size_t i = 0; i < arrSize - 1; i++) {
+        for (size_t j = 0; j < arrSize - i - 1; j++) {
+            if (arr[j].key > arr[j + 1].key) {
+                swap(&arr[j], &arr[j + 1]);
+            }
+        }
+    }
+}
+
 void printChar(char ch){
 	n = sprintf((char *)buffer, "%c", ch);
 	USART_Write(USART2, buffer, n);
@@ -48,72 +117,99 @@ void printChar(char ch){
 
 _Bool power_on_self_test(void){
 	    //POST Pass if it saw a signal
-	  while((TIM2->SR & 0x02)){
+	  while((TIM2->SR & (TIM_SR_CC1IF|| TIM_SR_CC2IF))){
 		  pulseDetected = true;
 		  break;
 	  }
-	  	//possibly change for variable clock tbd
-		volatile int MS = (int)((TIM2->CNT / 80000000.0) * 1000000.0);
-		//Checks if it has been 100 ms
-		 while(MS < 1000.0){
-			  if((TIM2->SR & 0x02)){
-				  pulseDetected = true;
-				  break;
-			  }
-			  MS = (int)((TIM2->CNT / 80000000.0) * 1000000.0);
-		  }
-		 return pulseDetected;
+	  return pulseDetected;
 
 }
 
-void TIM_Period(void){
-	  //initialize meas array
-	  for(int i = 0; i < 1000; i ++){
-		  meas[i] = 0;
-	  }
+uint32_t TIM2_EdgeToEdge(void) {
+	while(!(TIM2->SR & (TIM_SR_CC1IF || TIM_SR_CC2IF))) {
+		; // block until flag set
+	}
+	uint32_t currentCapture = TIM2->CCR1;
+	uint32_t diff = currentCapture - lastCapture;
+	lastCapture = currentCapture;
+	// Clear the CC1F flag
+//	TIM2->SR &= ~TIM_SR_CC1IF;
+	return diff;
+}
+
+int init_measurement( uint32_t limit ) {
+	for (int i = 0; i < 101; i++) {
+		buckets[i] = 0;
+	}
+	lastCapture = 0;
+	return 0;
+}
+
+void make_measurements( uint32_t limit ) {
 	  int idx = 0;
-	  int PrevMeas = 0;
-
+	  //int PrevMeas = 0;
+	  TIM2->CNT = 0;
 	  while(idx != 1000){
-				 if((TIM2->SR & 0x02)){	//We read a signal in
-					 //This is our first ever measurement
-					 if(PrevMeas == 0){
-						 PrevMeas = (int)((TIM2->CCR1 / 80000000.0) * 1000000.0);
-					 }
-					 else{
-						 //Add the measurement to the array IF it is in bounds
-						 int MS = (int)((TIM2->CCR1 / 80000000.0) * 1000000.0) - PrevMeas;
-						 PrevMeas = (int)((TIM2->CCR1 / 80000000.0) * 1000000.0);
-						 if(MS >= lowerLimit && MS <= (lowerLimit + 100)){
-							 meas[idx] = MS;
-							 idx ++;
-						 	 }
-					 	 }
-				 	 }
-			  }
+		 if((TIM2->SR & 0x02)){	//We read a signal in
+			 //This is our first ever measurement
+				 //Add the measurement to the array IF it is in bounds
+				 int MS = (int)((TIM2->CCR1 / 4000000.0) * 1000000.0); //- PrevMeas;
+				 //PrevMeas = (int)((TIM2->CCR1 / 4000000.0) * 1000000.0);
+				 if(MS >= lowerLimit && MS <= (lowerLimit + 100)){
+					 meas[idx] = MS;
+					 idx ++;
+
+				 }
+			 }
+	  }
 }
 
-void swap(int *a, int *b) {
-    int temp = *a;
-    *a = *b;
-    *b = temp;
+
+void printFunct(char* printBuffer) {
+	USART_Write(USART2, (uint8_t*)printBuffer, strlen(printBuffer)); // simple print solution
 }
 
-void printValues(int arr[], int n) {
-    for (int i = 0; i < n-1; i++) {
-        for (int j = 0; j < n-i-1; j++) {
-            if (arr[j] > arr[j+1]) {
-                swap(&arr[j], &arr[j+1]);
-            }
-        }
-    }
-    for (int i = 0; i < 1000 ; i++) {
-    			  if(arr[i] > 0){
-    				  printString((char *) printf("Index %d: %d\n", i, arr[i]));
-    				  USART_Write(USART2, buffer, n);
-    			  }
-    	  	  }
+void print_measurements( uint32_t limit ) {
+	//first, prepare for printing
+	  struct KeyValue* Measures = initialize_map(1000);
+	  update_map(Measures, meas, 1000);
+	  //Sort the dictionary in ascending order
+	  sort_dictionary(Measures, 1000);
+
+	for (int i = 0; i < 1001; i++) {
+		if ((Measures[i].key > (lowerLimit)) && (Measures[i].key < (lowerLimit + 101))) {
+			sprintf(lineBuffer, " Period: %d Count: %d \r\n",Measures[i].key, Measures[i].value);
+//			USART_Write(USART2, (uint8_t*) lineBuffer, n);
+			printFunct(lineBuffer);
+		}
+	}
+
 }
+
+void print_duty(){
+	int index;
+	 struct KeyValue* map = initialize_map(1001);
+	  update_map(map, dutys, 1001);
+	  //Sort the dict in ascending order
+	  sort_dictionary(map, 1001);
+
+
+	  index = 0;
+	  //Print out each value and it's count
+	 for (int i = 0; i < 1001 ; i++) {
+		  if(map[i].value > 0 && map[i].key < 10000){
+			  int  DutyCycle= map[i].key ;
+			  int count = map[i].value;
+			  sprintf(lineBuffer, "\r\n");
+			  printFunct(lineBuffer);
+			  sprintf(lineBuffer, "Duty Cycle Calculation\r\n");
+			  sprintf(lineBuffer, " Duty: %d Count: %d \r\n",DutyCycle, count );
+			  printFunct(lineBuffer);
+		  }
+		  index++;
+	  }
+}
+
 
 void Start_Timer(void) {
     // Start the timer by enabling the counter
@@ -128,7 +224,6 @@ void Stop_Timer(void) {
 }
 
 void TIM_Duty(void){
-	TIM2->PSC = 15;
 	    	  double tFall = 0.0;
 	    	  double tRise = 0.0;
 	    	  double tEnd  = 0.0;
@@ -147,24 +242,24 @@ void TIM_Duty(void){
 	    	  while(ind != 1001){
 	    		  if((TIM2->SR & 0x02)){
 	    			  if(tRise == 0.0){
-	    				  tRise = TIM2->CCR1 / 80000000.0 ;
+	    				  tRise = TIM2->CCR1 / 4000000.0 ;
 	    			  }
 	    			  else{
-	    				  tEnd = TIM2->CCR1 / 80000000.0 ;
+	    				  tEnd = TIM2->CCR1 / 4000000.0 ;
 	    			  }
 	    		  }
 	    		  if((TIM2->SR & 0x04)){
-	    			  	  tFall = (TIM2->CCR2 / 80000000.0) ;
+	    			  	  tFall = (TIM2->CCR2 / 4000000.0) ;
 	    			  	  continue;
 	    		  }
 	    		  //We can calculate the duty cycle
 	    		  if((tFall != 0.0) && (tRise != 0.0) && (tEnd != 0.0)){
-	    			  double tOn = tFall - tRise;
-	    			  double tOff = tEnd - tFall;
-	    			  double DutyCyc = tOn / (tOn + tOff);
+	    			  //double tOn = tFall - tRise;
+	    			  //double tOff = tEnd - tFall;
+	    			  double DutyCyc = tFall / tRise;
 	    			  //We throw out the first measurement because it hasnt seen the next pulse yet
 	    			  if(ind != 0){
-	    			  dutys[ind] = DutyCyc * 10000;
+	    			  dutys[ind] = DutyCyc * 100;
 	    			  }
 	    			  //reset the fall and end times
 	    			  tFall = 0.0;
@@ -195,9 +290,9 @@ int main(void) {
     // Initialization executed once at startup
 //    UART_Init();
     TIM_Init();
-    Stop_Timer();
 	USART2_Init(9600);			// Initialize USART for terminal
 	clock_init();				// Initialize clock
+	Start_Timer();
     while( power_on_self_test() == false)
         ;
 	uint8_t command[5];			// buffer for input command
@@ -225,7 +320,7 @@ int main(void) {
 
 
     	if (strcmp("yes", (char *) command)){					// checks for custom limits
-    		printString("\r\nWhat would you like the lower limit to be? (must be between 50 and 950): ");
+    		printString("\r\nWhat would you like the lower limit to be? (must be between 50 and 9950): ");
     		rx = USART_Read(USART2);
     		i = 0;
 
@@ -239,7 +334,7 @@ int main(void) {
     		i = 0;
     		lowerLimit = atoi((char *)command);					// converts string of int into int for use as limit
 
-			while (lowerLimit < 50 || lowerLimit > 950){
+			while (lowerLimit < 50 || lowerLimit > 9950){
 
 				printString("\r\nLower limit must be between 50 and 950. Please enter a new limit: ");
 				rx = USART_Read(USART2);
@@ -270,13 +365,16 @@ int main(void) {
 
         // 3. read 100 pulses
         Start_Timer();
-    	TIM_Period();
+        init_measurement(lowerLimit);
+    	make_measurements(lowerLimit);
+    	print_measurements(lowerLimit);
     	Stop_Timer();
-    	printValues(meas, 1000);
+
+
     	Start_Timer();
     	TIM_Duty();
     	Stop_Timer();
-    	printValues(dutys,1001);
+    	print_duty();
 
 
         // 4. print out results

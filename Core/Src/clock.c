@@ -8,7 +8,7 @@
 
 #include "stm32l476xx.h"
 
-
+//static uint32_t prescaleVal = 15;
 
 void clock_init(void) {
     RCC->CR |= ((uint32_t)RCC_CR_HSION);
@@ -29,29 +29,62 @@ void clock_init(void) {
 }
 
 void TIM_Init(void){
+	 // Enable clock for GPIOA peripheral
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
 
-    // Enable GPIOA clock
-		RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;   // Enable GPIOA clock
-		GPIOA->MODER &= ~GPIO_MODER_MODER0;    // Clear mode bits for pin 0
-		GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR0;    // Clear pull-up/pull-down bits for pin 0
+	// Configure GPIOA0 in alternate function mode
+	GPIOA->MODER &= ~GPIO_MODER_MODER0;
+	GPIOA->MODER |= GPIO_MODER_MODER0_1;
 
-	// Configure TIM2 for input capture
-		/* Variable to store timestamp for last detected active edge */
-		/* The ARR register reset value is 0x0000FFFF for TIM3 timer. So it should
-		be ok for this snippet */
-		/* If you want to change it uncomment the below line */
-		/* TIM3->ARR = ANY_VALUE_YOU_WANT */
-		/* Set the TIM3 timer channel 1 as input */
-		/* CC1S bits are writable only when the channel1 is off */
-		/* After reset, all the timer channels are turned off */
-		TIM2->CCMR1 |= TIM_CCMR1_CC1S_0;
-		/* Enable the TIM3 channel1 and keep the default configuration (state after
-		reset) for channel polarity */
-		TIM2->CCER |= TIM_CCER_CC1E;
-		/* Start the timer counter */
-		TIM2->CR1 |= TIM_CR1_CEN;
-		/* Clear the Capture event flag for channel 1 */
-		TIM2->SR = ~TIM_SR_CC1IF;
+	// Select the desired alternate function (AF) for the pin
+	// This depends on the specific function generator and the pin's datasheet
+	GPIOA->AFR[0] &= ~GPIO_AFRL_AFRL0;
+	GPIOA->AFR[0] |= (uint32_t)0x01; // Set alternate function to TIM2
+	//Calculate Prescaler based on System Core clock
+	uint32_t prescaler = SystemCoreClock/1000000 - 1;
+	//Print statement to start init
+
+	// Enable TIM2 clock
+	RCC->APB1ENR1 |= RCC_APB1ENR1_TIM2EN;
+
+	//Disable TIM2
+	TIM2->CR1 &= ~TIM_CR1_CEN;
+
+	// Set prescaler
+	TIM2->PSC = prescaler;
+
+	//Write CC1S bits to 01 to select TI1
+	TIM2->CCMR1 &= ~TIM_CCMR1_CC1S;
+	TIM2->CCMR1 |= TIM_CCMR1_CC1S_0;
+	//Select polarity for TI1FP1. CC1P = 0, CC1NP = 0
+	TIM2->CCER &= ~TIM_CCER_CC1P;
+	TIM2->CCER &= ~TIM_CCER_CC1NP;         //Set for rising edge
+
+	//Wreite CC2S bits to 10 to select TI1
+	TIM2->CCMR1 &= ~TIM_CCMR1_CC2S;
+	TIM2->CCMR1 |= TIM_CCMR1_CC2S_1;
+
+	//Select polarity for TI1FP2. CC2P = 1, CC2NP = 0
+	TIM2->CCER |= TIM_CCER_CC2P;
+	TIM2->CCER &= ~TIM_CCER_CC2NP;         //Set for falling edge
+
+	//Select valid trigger input: write TS bits to 101
+	TIM2->SMCR &= ~TIM_SMCR_TS;
+	TIM2->SMCR |= TIM_SMCR_TS_2;
+	TIM2->SMCR |= TIM_SMCR_TS_0;
+
+	//Write SMS bits to 100 for slave mode
+	TIM2->SMCR &= ~TIM_SMCR_SMS;
+	TIM2->SMCR |= TIM_SMCR_SMS_2;
+
+	//Enable capture/compare 1 and 2
+	TIM2->CCER |= TIM_CCER_CC1E;
+	TIM2->CCER |= TIM_CCER_CC2E;
+
+	// Enable the timer
+	TIM2->CR1 |= TIM_CR1_CEN;
+	return;
+
 }
 
 
